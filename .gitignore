@@ -1,0 +1,16 @@
+# 学習データ（366MB、ゲート付きデータセット由来なので再配布しない）
+data/
+# fp32の学習済み重み（配布はHF、release/ は2GBあるのでこれも除外）
+models/
+release/*
+!release/README.md
+!release/preview.png
+# 実験の出力
+out_*/
+runs/
+# 環境
+.venv/
+__pycache__/
+*.pyc
+.idea/
+.DS_Store

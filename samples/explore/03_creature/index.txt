@@ -1,0 +1,16 @@
+0行1列  cat_0
+0行2列  cat_1
+0行3列  frog_0
+0行4列  frog_1
+0行5列  octopus_0
+0行6列  octopus_1
+1行1列  butterfly_0
+1行2列  butterfly_1
+1行3列  penguin_0
+1行4列  penguin_1
+1行5列  snail_0
+1行6列  snail_1
+2行1列  dragon_egg_0
+2行2列  dragon_egg_1
+2行3列  jellyfish_0
+2行4列  jellyfish_1

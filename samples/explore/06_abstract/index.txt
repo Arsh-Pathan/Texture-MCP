@@ -1,0 +1,16 @@
+0行1列  katana_0
+0行2列  katana_1
+0行3列  shuriken_0
+0行4列  shuriken_1
+0行5列  torii_gate_0
+0行6列  torii_gate_1
+1行1列  sakura_branch_0
+1行2列  sakura_branch_1
+1行3列  maneki_neko_0
+1行4列  maneki_neko_1
+1行5列  lightning_bolt_0
+1行6列  lightning_bolt_1
+2行1列  black_hole_0
+2行2列  black_hole_1
+2行3列  rainbow_0
+2行4列  rainbow_1

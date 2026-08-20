@@ -1,0 +1,17 @@
+[project]
+name = "pixelgen"
+version = "1.0.0"
+description = "Train and use a Stable Diffusion fine-tune that generates real 16x16 Minecraft item textures"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+dependencies = [
+    "accelerate>=1.0",
+    "diffusers>=0.39",
+    "peft>=0.20",
+    "pillow>=11",
+    "pyarrow>=20",
+    "safetensors>=0.6",
+    "torch>=2.8",
+    "transformers>=5.0",
+]

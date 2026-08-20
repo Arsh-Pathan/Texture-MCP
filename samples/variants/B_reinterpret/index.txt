@@ -1,0 +1,16 @@
+0行1列  0_元テクスチャ
+0行2列  0_mossy ancient
+0行3列  0_golden royal
+0行4列  0_cursed dark
+1行1列  1_元テクスチャ
+1行2列  1_mossy ancient
+1行3列  1_golden royal
+1行4列  1_cursed dark
+2行1列  2_元テクスチャ
+2行2列  2_mossy ancient
+2行3列  2_golden royal
+2行4列  2_cursed dark
+3行1列  3_元テクスチャ
+3行2列  3_mossy ancient
+3行3列  3_golden royal
+3行4列  3_cursed dark

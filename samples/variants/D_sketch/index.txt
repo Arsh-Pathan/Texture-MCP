@@ -1,0 +1,12 @@
+0行1列  iron lantern_下絵
+0行2列  iron lantern_仕上げ
+0行3列  wooden shield_下絵
+0行4列  wooden shield_仕上げ
+1行1列  green potion flask_下絵
+1行2列  green potion flask_仕上げ
+1行3列  steel anvil_下絵
+1行4列  steel anvil_仕上げ
+2行1列  blue fish_下絵
+2行2列  blue fish_仕上げ
+2行3列  golden crown_下絵
+2行4列  golden crown_仕上げ

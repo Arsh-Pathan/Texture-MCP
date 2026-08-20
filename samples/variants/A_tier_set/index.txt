@@ -1,0 +1,9 @@
+0行1列  00_原案(iron sword)
+0行2列  01_wooden sword
+0行3列  02_stone sword
+1行1列  03_iron sword
+1行2列  04_golden sword
+1行3列  05_diamond sword
+2行1列  06_netherite sword
+2行2列  07_emerald sword
+2行3列  08_ruby sword
