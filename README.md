@@ -6,6 +6,10 @@ transparency, from free-text prompts.
 
 Not "pixel-art style illustrations". Actual 16×16 RGBA sprites you can drop into a resource pack.
 
+**[Try it in the browser →](https://huggingface.co/spaces/yuuki14202028/minecraft-item-16px-demo)**
+— no install, no GPU. Type a prompt, draw a 16×16 doodle for the model to finish, or build
+a matched tier set from one design.
+
 ![samples](release/preview.png)
 
 It also works from a drawing. `sketch2tex.py` takes a crude 16×16 doodle and finishes it —
@@ -55,6 +59,7 @@ vocabulary and only inject noise. Measured: `usb drive` and `cat` never resolve 
 | `explore.py` | 50 prompts × 2 seeds across six themes |
 | `sketch2tex.py` | hand-drawn 16×16 sketch → finished texture (img2img) |
 | `variants.py` | tier sets, reinterpretation of existing textures, jitter, sketches |
+| `space/app.py` | the Gradio demo on the Hub — text, sketch and tier-set tabs |
 | `RUNPOD.md` | how the training run was actually executed |
 
 ## Training
@@ -94,7 +99,8 @@ looked impossible until six seeds showed 5/6 correct.
 The model's weakness is the *shape* of unfamiliar objects, not texture or shading. Supplying
 the shape yourself fixes it — `sketch2tex.py` turns a crude 16×16 doodle into a finished item,
 and `variants.py` builds matched tier sets from one design, reinterprets existing textures, and
-produces controlled variation for filling out a pack.
+produces controlled variation for filling out a pack. Both are tabs in the
+[live demo](https://huggingface.co/spaces/yuuki14202028/minecraft-item-16px-demo), so you can try them without cloning anything.
 
 ![one 16x16 texture expanded into twelve material variants](assets/tier_set.png)
 
