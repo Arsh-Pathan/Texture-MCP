@@ -110,7 +110,7 @@ def duration(prompt, count, steps, guidance, seed):
 @spaces.GPU(duration=duration)
 def generate(prompt, count, steps, guidance, seed):
     if not prompt.strip():
-        raise gr.Error("プロンプトを入れてください。例: copper sword")
+        raise gr.Error("Enter a prompt. For example: copper sword")
     seed = int(seed)
     gen = None if seed < 0 else torch.Generator(device="cpu").manual_seed(seed)
     images = pipe([prompt] * int(count), negative_prompt=[""] * int(count),
@@ -128,9 +128,9 @@ def sketch_duration(sketch, prompt, count, strength, steps, guidance, seed):
 def generate_from_sketch(sketch, prompt, count, strength, steps, guidance, seed):
     src = editor_image(sketch)
     if src is None:
-        raise gr.Error("下絵を描くか、画像を読み込んでください。")
+        raise gr.Error("Draw something, or load an image.")
     if not prompt.strip():
-        raise gr.Error("プロンプトを入れてください。例: steel wrench")
+        raise gr.Error("Enter a prompt. For example: steel wrench")
     seed = int(seed)
     gen = None if seed < 0 else torch.Generator(device="cpu").manual_seed(seed)
     images = i2i(prompt=prompt, image=to_init(src), strength=float(strength),
@@ -155,10 +155,10 @@ def generate_tier_set(sketch, materials, noun, strength, steps, guidance, seed):
     """1枚の原案から素材違いの一式を作る。variants.py の階層セットに当たる。"""
     src = editor_image(sketch)
     if src is None:
-        raise gr.Error("原案を描くか、画像を読み込んでください。")
+        raise gr.Error("Draw a design, or load an image.")
     mats = parse_list(materials)
     if not mats:
-        raise gr.Error("素材を1つ以上入れてください。例: iron, golden, diamond")
+        raise gr.Error("Enter at least one material. For example: iron, golden, diamond")
     prompts = [f"{m} {noun}".strip() for m in mats]
     seed = int(seed)
     # シルエットを揃えたいので、全プロンプトに同じ初期ノイズを与える
@@ -176,7 +176,30 @@ def generate_tier_set(sketch, materials, noun, strength, steps, guidance, seed):
     return previews, files
 
 
-DESCRIPTION = """
+# 画面の文言。ラベルは英語で固定し、長い説明だけブラウザの言語に合わせて出し分ける。
+# gr.Markdown の value は I18n が確実に効くが、label 側は保証がないため使わない。
+DESC_EN = """
+# Minecraft Item Textures 16px
+
+Makes **real 16×16 Minecraft item textures** from a prompt. Not "an illustration that looks like
+pixel art" — an actual RGBA sprite you can drop straight into a resource pack.
+
+The preview is enlarged so you can see it. The files you download are **16×16, with transparency**.
+
+<details>
+<summary>How it works</summary>
+
+Stable Diffusion cannot generate a 16×16 image. Its VAE compresses by 8×, so 16px becomes a 2×2
+latent and the UNet's three downsampling stages break. So every training image was a 16×16 texture
+upscaled ×16 with nearest-neighbour, and the model only ever learned to draw on that grid.
+Averaging each 16×16 block of the output recovers the sprite exactly. Transparency was trained as
+magenta (255, 0, 255) and is keyed out afterwards.
+
+**Seed variance is large.** Do not judge this model from one image — generate several and pick.
+</details>
+"""
+
+DESC_JA = """
 # Minecraft Item Textures 16px
 
 プロンプトから **本物の16×16 Minecraftアイテムテクスチャ** を作ります。
@@ -196,7 +219,17 @@ UNetの3段ダウンサンプルが破綻します。そこで学習画像を「
 </details>
 """
 
-SKETCH_HELP = """
+SKETCH_EN = """
+**You give the shape, the model gives shading and material.** What this model gets wrong is the
+*shape* of unfamiliar objects, not texture — so supplying the shape yourself makes prompts land
+that text alone never does.
+
+The dial that matters is **strength**. Low keeps your drawing, high lets the model redraw it.
+Around 0.45 your own colours survive; by 0.9 the drawing is treated as a loose suggestion.
+When a result misses, sweep strength and the seed before giving up.
+"""
+
+SKETCH_JA = """
 **下絵で「形」を、モデルに「陰影と質感」を任せます。** このモデルが外すのは質感ではなく
 見慣れない物の形なので、形さえ与えればテキストだけでは当たらないプロンプトも通ります。
 
@@ -205,7 +238,19 @@ SKETCH_HELP = """
 うまくいかないときは strength とシードを振ってください。
 """
 
-TIERS_HELP = """
+TIERS_EN = """
+**One design in, a whole set of material variants out.** Each material is combined with the item
+name into a prompt, and every prompt gets the same design and the same seed — which is what keeps
+the **silhouettes lined up** across the set.
+
+Strength around 0.5 is the sweet spot. Push it higher and each material drifts into its own shape,
+and it stops reading as a set.
+
+Underneath this is the same img2img as the sketch tab. The only difference is running several
+prompts at once.
+"""
+
+TIERS_JA = """
 **1枚の原案から、素材違いの一式をまとめて作ります。** 素材名とアイテム名を組み合わせて
 プロンプトを並べ、全部に同じ原案と同じシードを与えるので、**シルエットが揃った系列**になります。
 
@@ -213,6 +258,27 @@ strengthは0.5前後が目安です。上げすぎると素材ごとに形が散
 
 やっていることは「下絵から」と同じimg2imgで、違うのはプロンプトを複数まとめて回す点だけです。
 """
+
+FOOTER_EN = """
+Model: [yuuki14202028/minecraft-item-16px](https://huggingface.co/yuuki14202028/minecraft-item-16px)
+ · Code: [github.com/yuuki14202028/pixelgen](https://github.com/yuuki14202028/pixelgen)
+
+The training data is mod textures carrying 235 different licence values, including
+all-rights-reserved. If you redistribute what you generate, verify its originality yourself.
+"""
+
+FOOTER_JA = """
+モデル: [yuuki14202028/minecraft-item-16px](https://huggingface.co/yuuki14202028/minecraft-item-16px)
+ ・ コード: [github.com/yuuki14202028/pixelgen](https://github.com/yuuki14202028/pixelgen)
+
+学習データは235種のライセンスが混在するMOD由来のテクスチャです。
+生成物を再配布する場合は独自性をご自身で確認してください。
+"""
+
+i18n = gr.I18n(
+    en={"desc": DESC_EN, "sketch": SKETCH_EN, "tiers": TIERS_EN, "footer": FOOTER_EN},
+    ja={"desc": DESC_JA, "sketch": SKETCH_JA, "tiers": TIERS_JA, "footer": FOOTER_JA},
+)
 
 EXAMPLES = [
     ["copper sword", 4, 30, 9.0, 0],
@@ -224,100 +290,94 @@ EXAMPLES = [
 ]
 
 with gr.Blocks(title="Minecraft Item Textures 16px") as demo:
-    gr.Markdown(DESCRIPTION)
+    gr.Markdown(i18n("desc"))
 
     with gr.Tabs():
-        with gr.Tab("テキストから"):
+        with gr.Tab("From text"):
             with gr.Row():
                 with gr.Column(scale=2):
-                    prompt = gr.Textbox(label="プロンプト", placeholder="copper sword",
+                    prompt = gr.Textbox(label="Prompt", placeholder="copper sword",
                                         value="copper sword", lines=1)
-                    run = gr.Button("生成", variant="primary")
-                    with gr.Accordion("詳細設定", open=False):
-                        count = gr.Slider(1, 8, value=4, step=1, label="枚数")
-                        steps = gr.Slider(10, 50, value=30, step=1, label="ステップ数")
+                    run = gr.Button("Generate", variant="primary")
+                    with gr.Accordion("Advanced", open=False):
+                        count = gr.Slider(1, 8, value=4, step=1, label="Images")
+                        steps = gr.Slider(10, 50, value=30, step=1, label="Steps")
                         guidance = gr.Slider(1.0, 15.0, value=9.0, step=0.5,
-                                             label="guidance（7〜12を推奨。3〜5は眠くなる）")
-                        seed = gr.Number(value=0, precision=0, label="シード（-1でランダム）")
+                                             label="Guidance (7–12 works; 3–5 goes mushy)")
+                        seed = gr.Number(value=0, precision=0, label="Seed (-1 for random)")
                 with gr.Column(scale=3):
-                    gallery = gr.Gallery(label="生成結果（表示は拡大）", columns=4,
+                    gallery = gr.Gallery(label="Results (shown enlarged)", columns=4,
                                          height=420, object_fit="contain")
-                    files = gr.Files(label="16×16 PNG（透過付き）")
+                    files = gr.Files(label="16×16 PNG, with transparency")
 
             run.click(generate, [prompt, count, steps, guidance, seed], [gallery, files])
             prompt.submit(generate, [prompt, count, steps, guidance, seed], [gallery, files])
             gr.Examples(EXAMPLES, [prompt, count, steps, guidance, seed])
 
-        with gr.Tab("下絵から"):
-            gr.Markdown(SKETCH_HELP)
+        with gr.Tab("From a drawing"):
+            gr.Markdown(i18n("sketch"))
             with gr.Row():
                 with gr.Column(scale=2):
                     sketch = gr.ImageEditor(
-                        label="下絵（描くか、画像を読み込む）",
+                        label="Drawing (draw here, or load an image)",
                         type="pil", image_mode="RGBA",
                         canvas_size=(256, 256), fixed_canvas=True,
                         layers=False, transforms=[], sources=("upload", "clipboard"),
                         brush=gr.Brush(default_size=24), eraser=gr.Eraser(default_size=24),
                         height=320)
-                    s_prompt = gr.Textbox(label="プロンプト", placeholder="steel wrench",
+                    s_prompt = gr.Textbox(label="Prompt", placeholder="steel wrench",
                                           value="steel wrench", lines=1)
                     s_strength = gr.Slider(0.3, 0.95, value=0.6, step=0.05,
-                                           label="strength（低い＝下絵に忠実 / 高い＝描き直す）")
-                    s_run = gr.Button("下絵から生成", variant="primary")
-                    with gr.Accordion("詳細設定", open=False):
-                        s_count = gr.Slider(1, 8, value=4, step=1, label="枚数")
-                        s_steps = gr.Slider(10, 50, value=40, step=1, label="ステップ数")
-                        s_guidance = gr.Slider(1.0, 15.0, value=9.0, step=0.5, label="guidance")
-                        s_seed = gr.Number(value=0, precision=0, label="シード（-1でランダム）")
+                                           label="Strength (low = keep the drawing / high = redraw)")
+                    s_run = gr.Button("Generate from drawing", variant="primary")
+                    with gr.Accordion("Advanced", open=False):
+                        s_count = gr.Slider(1, 8, value=4, step=1, label="Images")
+                        s_steps = gr.Slider(10, 50, value=40, step=1, label="Steps")
+                        s_guidance = gr.Slider(1.0, 15.0, value=9.0, step=0.5, label="Guidance")
+                        s_seed = gr.Number(value=0, precision=0, label="Seed (-1 for random)")
                 with gr.Column(scale=3):
-                    s_gallery = gr.Gallery(label="生成結果（表示は拡大）", columns=4,
+                    s_gallery = gr.Gallery(label="Results (shown enlarged)", columns=4,
                                            height=420, object_fit="contain")
-                    s_files = gr.Files(label="16×16 PNG（透過付き）")
+                    s_files = gr.Files(label="16×16 PNG, with transparency")
 
             s_inputs = [sketch, s_prompt, s_count, s_strength, s_steps, s_guidance, s_seed]
             s_run.click(generate_from_sketch, s_inputs, [s_gallery, s_files])
             s_prompt.submit(generate_from_sketch, s_inputs, [s_gallery, s_files])
 
-        with gr.Tab("一式を作る"):
-            gr.Markdown(TIERS_HELP)
+        with gr.Tab("A whole set"):
+            gr.Markdown(i18n("tiers"))
             with gr.Row():
                 with gr.Column(scale=2):
                     t_sketch = gr.ImageEditor(
-                        label="原案（描くか、テクスチャを読み込む）",
+                        label="Design (draw here, or load a texture)",
                         type="pil", image_mode="RGBA",
                         canvas_size=(256, 256), fixed_canvas=True,
                         layers=False, transforms=[], sources=("upload", "clipboard"),
                         brush=gr.Brush(default_size=24), eraser=gr.Eraser(default_size=24),
                         height=320)
                     t_materials = gr.Textbox(
-                        label="素材（カンマ区切り、最大12）",
+                        label="Materials (comma-separated, up to 12)",
                         value="wooden, stone, iron, golden, diamond, netherite, emerald, ruby",
                         lines=2)
-                    t_noun = gr.Textbox(label="アイテム名", value="sword", lines=1)
+                    t_noun = gr.Textbox(label="Item name", value="sword", lines=1)
                     t_strength = gr.Slider(0.3, 0.95, value=0.5, step=0.05,
-                                           label="strength（0.5前後だとシルエットが揃う）")
-                    t_run = gr.Button("一式を生成", variant="primary")
-                    with gr.Accordion("詳細設定", open=False):
-                        t_steps = gr.Slider(10, 50, value=40, step=1, label="ステップ数")
-                        t_guidance = gr.Slider(1.0, 15.0, value=9.0, step=0.5, label="guidance")
+                                           label="Strength (around 0.5 keeps silhouettes aligned)")
+                    t_run = gr.Button("Generate the set", variant="primary")
+                    with gr.Accordion("Advanced", open=False):
+                        t_steps = gr.Slider(10, 50, value=40, step=1, label="Steps")
+                        t_guidance = gr.Slider(1.0, 15.0, value=9.0, step=0.5, label="Guidance")
                         t_seed = gr.Number(value=77, precision=0,
-                                           label="シード（全素材で共有。-1でランダム）")
+                                           label="Seed (shared by every material; -1 for random)")
                 with gr.Column(scale=3):
-                    t_gallery = gr.Gallery(label="生成結果（素材の順）", columns=4,
+                    t_gallery = gr.Gallery(label="Results (in material order)", columns=4,
                                            height=420, object_fit="contain")
-                    t_files = gr.Files(label="16×16 PNG（透過付き）")
+                    t_files = gr.Files(label="16×16 PNG, with transparency")
 
             t_run.click(generate_tier_set,
                         [t_sketch, t_materials, t_noun, t_strength, t_steps, t_guidance, t_seed],
                         [t_gallery, t_files])
 
-    gr.Markdown(
-        "モデル: [yuuki14202028/minecraft-item-16px]"
-        "(https://huggingface.co/yuuki14202028/minecraft-item-16px) ・ "
-        "コード: [github.com/yuuki14202028/pixelgen](https://github.com/yuuki14202028/pixelgen)\n\n"
-        "学習データは235種のライセンスが混在するMOD由来のテクスチャです。"
-        "生成物を再配布する場合は独自性をご自身で確認してください。"
-    )
+    gr.Markdown(i18n("footer"))
 
 # SSRを有効にするとGalleryの更新がフロントに届かないことがあるので切る
-demo.queue(max_size=20).launch(ssr_mode=False)
+demo.queue(max_size=20).launch(ssr_mode=False, i18n=i18n)
