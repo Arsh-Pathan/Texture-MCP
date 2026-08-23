@@ -8,10 +8,10 @@ Not "pixel-art style illustrations". Actual 16×16 RGBA sprites you can drop int
 
 ![samples](release/preview.png)
 
-One design in, a full tier set out. `variants.py` does this with img2img on the same
-weights — no retraining, no extra model:
+It also works from a drawing. `sketch2tex.py` takes a crude 16×16 doodle and finishes it —
+same weights, img2img, nothing retrained:
 
-![a single 16x16 texture expanded into twelve material variants](assets/tier_set.gif)
+![four hand-drawn sketches turned into finished textures at increasing img2img strength](assets/sketch_to_texture.png)
 
 ## Why this works
 
@@ -95,6 +95,8 @@ The model's weakness is the *shape* of unfamiliar objects, not texture or shadin
 the shape yourself fixes it — `sketch2tex.py` turns a crude 16×16 doodle into a finished item,
 and `variants.py` builds matched tier sets from one design, reinterprets existing textures, and
 produces controlled variation for filling out a pack.
+
+![one 16x16 texture expanded into twelve material variants](assets/tier_set.png)
 
 ## Data provenance
 
