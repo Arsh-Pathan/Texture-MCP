@@ -8,6 +8,11 @@ Not "pixel-art style illustrations". Actual 16×16 RGBA sprites you can drop int
 
 ![samples](release/preview.png)
 
+One design in, a full tier set out. `variants.py` does this with img2img on the same
+weights — no retraining, no extra model:
+
+![a single 16x16 texture expanded into twelve material variants](assets/tier_set.gif)
+
 ## Why this works
 
 Stable Diffusion cannot generate a 16×16 image. Its VAE compresses by 8×, so a 16px image
