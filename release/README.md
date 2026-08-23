@@ -1,6 +1,10 @@
 ---
 license: creativeml-openrail-m
 base_model: stable-diffusion-v1-5/stable-diffusion-v1-5
+datasets:
+- OVAWARE/16xModdedMinecraft
+language:
+- en
 tags:
 - text-to-image
 - stable-diffusion
@@ -9,6 +13,9 @@ tags:
 - pixel-art
 - texture
 - 16x16
+- sprite
+- game-assets
+- image-generation
 library_name: diffusers
 pipeline_tag: text-to-image
 ---
@@ -64,7 +71,7 @@ def to_tile(image, size=16, tol=100):
     c = a.shape[0] // size
     rgb = a.reshape(size, c, size, c, 3).mean(axis=(1, 3)).round().clip(0, 255).astype(np.int16)
     alpha = np.where(np.abs(rgb - BG).sum(axis=2) <= tol, 0, 255).astype(np.uint8)
-    return Image.fromarray(np.dstack([rgb.astype(np.uint8), alpha]), "RGBA")
+    return Image.fromarray(np.dstack([rgb.astype(np.uint8), alpha]))
 
 to_tile(image).save("copper_sword.png")        # 16x16 RGBA
 ```

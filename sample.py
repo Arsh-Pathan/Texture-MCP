@@ -38,7 +38,7 @@ def key_out(tile: Image.Image, tol: int = 100) -> Image.Image:
     bg = np.abs(rgb - BG).sum(axis=2) <= tol
     out = np.dstack([rgb.astype(np.uint8),
                      np.where(bg, 0, 255).astype(np.uint8)])
-    return Image.fromarray(out, "RGBA")
+    return Image.fromarray(out)
 
 
 def main() -> None:

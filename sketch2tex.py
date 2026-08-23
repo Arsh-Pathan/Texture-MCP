@@ -4,6 +4,7 @@ img2img（SDEdit）を使う。学習も追加モデルも不要で、いまの�
 下絵で「形と配置」を決め、モデルに「陰影と質感」を任せる分担になる。
 """
 
+import argparse
 import pathlib
 import sys
 
@@ -58,6 +59,14 @@ def sketch_umbrella() -> Image.Image:
     return im
 
 
+def load_sketch(path: pathlib.Path) -> Image.Image:
+    """外部PNGを下絵として読む。透過部は学習時と同じマゼンタで埋める。"""
+    im = Image.open(path).convert("RGBA")
+    if im.size != (16, 16):
+        im = im.resize((16, 16), Image.Resampling.NEAREST)
+    return Image.alpha_composite(canvas().convert("RGBA"), im).convert("RGB")
+
+
 SKETCHES = {
     "steel wrench": sketch_wrench,
     "wooden guitar": sketch_guitar,
@@ -68,7 +77,30 @@ STRENGTHS = [0.45, 0.6, 0.75, 0.9]
 
 
 def main() -> None:
-    outdir = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "out_sketch")
+    ap = argparse.ArgumentParser()
+    ap.add_argument("out", nargs="?", default="out_sketch")
+    ap.add_argument("--sketch", action="append", default=None, metavar="PNG",
+                    help="下絵にする16x16 PNG。省略時は組み込みの手描き4種")
+    ap.add_argument("--prompt", action="append", default=None,
+                    help="--sketchと同じ順で対応。省略分はファイル名から作る")
+    ap.add_argument("--seed", action="append", type=int, default=None,
+                    help="複数指定可。1シードでの判断は当てにならないので既定でも複数振る")
+    ap.add_argument("--strength", action="append", type=float, default=None)
+    args = ap.parse_args()
+
+    strengths = args.strength or STRENGTHS
+    seeds = args.seed or [77]
+    if args.sketch:
+        paths = [pathlib.Path(p) for p in args.sketch]
+        given = args.prompt or []
+        # プロンプト未指定分はファイル名から: skull_fragment.png -> "skull fragment"
+        prompts = [given[i] if i < len(given) else p.stem.replace("_", " ")
+                   for i, p in enumerate(paths)]
+        sources = [(pr, (lambda q=p: load_sketch(q))) for pr, p in zip(prompts, paths)]
+    else:
+        sources = list(SKETCHES.items())
+
+    outdir = pathlib.Path(args.out)
     (outdir / "sketch").mkdir(parents=True, exist_ok=True)
     (outdir / "tile").mkdir(parents=True, exist_ok=True)
 
@@ -84,25 +116,28 @@ def main() -> None:
     pipe.set_progress_bar_config(disable=True)
 
     rows, labels = [], []
-    for prompt, fn in SKETCHES.items():
+    for prompt, fn in sources:
+        stem = prompt.replace(" ", "_")
         s16 = fn()
-        s16.save(outdir / "sketch" / f"{prompt.replace(' ', '_')}.png")
+        s16.save(outdir / "sketch" / f"{stem}.png")
         init = s16.resize((16 * UPSCALE, 16 * UPSCALE), Image.Resampling.NEAREST)
-        # 1列目に下絵そのものを置いて、どこから始まったか分かるようにする
-        rows.append(key_out(s16.convert("RGB"))); labels.append(f"{prompt} (下絵)")
-        for st in STRENGTHS:
-            gen = torch.Generator(device="cpu").manual_seed(77)
-            im = pipe(prompt=prompt, image=init, strength=st, guidance_scale=9.0,
-                      negative_prompt=NEGATIVE, num_inference_steps=40, generator=gen).images[0]
-            tile = key_out(fold_to_tile(im, 16))
-            tile.save(outdir / "tile" / f"{prompt.replace(' ', '_')}_s{st}.png")
-            rows.append(tile); labels.append(f"{prompt} s={st}")
-        print(f"[gen] {prompt}", file=sys.stderr, flush=True)
+        for seed in seeds:
+            # 各行の1列目に下絵そのものを置いて、どこから始まったか分かるようにする
+            rows.append(key_out(s16.convert("RGB"))); labels.append(f"{prompt} (下絵)")
+            for st in strengths:
+                gen = torch.Generator(device="cpu").manual_seed(seed)
+                im = pipe(prompt=prompt, image=init, strength=st, guidance_scale=9.0,
+                          negative_prompt=NEGATIVE, num_inference_steps=40, generator=gen).images[0]
+                tile = key_out(fold_to_tile(im, 16))
+                tile.save(outdir / "tile" / f"{stem}_seed{seed}_s{st}.png")
+                rows.append(tile); labels.append(f"{prompt} seed={seed} s={st}")
+            print(f"[gen] {prompt} seed={seed}", file=sys.stderr, flush=True)
 
-    cols = 1 + len(STRENGTHS)
+    cols = 1 + len(strengths)
     mcpixel.contact_sheet(rows, cols=cols, cell=96).save(outdir / "contact_sheet.png")
     outdir.joinpath("index.txt").write_text(
-        f"列 = 下絵, strength {STRENGTHS}\n行 = {list(SKETCHES)}\n", encoding="utf8")
+        "\n".join(f"{i//cols}行{i%cols+1}列  {n}" for i, n in enumerate(labels)) + "\n",
+        encoding="utf8")
     print(f"[done] -> {outdir}", file=sys.stderr)
 
 
