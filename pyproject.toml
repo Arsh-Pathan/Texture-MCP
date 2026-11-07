@@ -1,21 +1,26 @@
 [project]
-name = "pixelgen"
-version = "1.0.0"
-description = "Train and use a Stable Diffusion fine-tune that generates real 16x16 Minecraft item textures"
+name = "texture-craft"
+version = "2.0.0"
+description = "FastAPI & MCP service for generating native 16x16 Minecraft item textures and resource packs for AI plugin generators."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "MIT" }
 dependencies = [
     "accelerate>=1.0",
     "diffusers>=0.39",
-    "peft>=0.20",
+    "fastapi>=0.115",
+    "mcp>=2.3.0",
     "pillow>=11",
-    "pyarrow>=20",
+    "pydantic>=2.10",
     "safetensors>=0.6",
     "torch>=2.8",
     "transformers>=5.0",
-    "gradio>=5.0",
+    "uvicorn>=0.34",
 ]
+
+[project.scripts]
+texture-craft-api = "server:main"
+texture-craft-mcp = "mcp_server:main"
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu126" }

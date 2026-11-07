@@ -1,117 +1,113 @@
-# pixelgen
+# ✨ Texture-Craft
 
-Training and tooling for **[minecraft-item-16px](https://huggingface.co/yuuki14202028/minecraft-item-16px)**
-— a Stable Diffusion 1.5 fine-tune that generates real 16×16 Minecraft mod item textures with
-transparency, from free-text prompts.
+**GPU-Accelerated 16×16 Minecraft Item Texture Generator & Resource Pack Builder.**  
+Exposes a **Native FastAPI REST service** and an **MCP (Model Context Protocol) Server** for AI Minecraft plugin generators and coding agents.
 
-Not "pixel-art style illustrations". Actual 16×16 RGBA sprites you can drop into a resource pack.
+---
 
-**[Try it in the browser →](https://huggingface.co/spaces/yuuki14202028/minecraft-item-16px-demo)**
-— no install, no GPU. Type a prompt, draw a 16×16 doodle for the model to finish, or build
-a matched tier set from one design.
+## ⚡ What Texture-Craft Does
 
-![samples](release/preview.png)
+Texture-Craft uses a fine-tuned Stable Diffusion 1.5 pipeline (`yuuki14202028/minecraft-item-16px`) trained specifically on Minecraft mod item textures.
+- Generates **authentic 16×16 RGBA sprites** with clean background transparency (not downscaled illustrations).
+- **Fast:** ~1.5 seconds per texture on an RTX 4050 Laptop GPU.
+- **Automated Resource Pack Assembly:** Automatically writes textures (`.png`), item models (`.json`), and sorted `CustomModelData` predicate overrides directly to your resource pack folder.
+- **Java Code Snippets:** Returns ready-to-use Bukkit/Spigot/Paper code snippets for custom items.
 
-It also works from a drawing. `sketch2tex.py` takes a crude 16×16 doodle and finishes it —
-same weights, img2img, nothing retrained:
+---
 
-![four hand-drawn sketches turned into finished textures at increasing img2img strength](assets/sketch_to_texture.png)
+## 🚀 Quick Start
 
-## Why this works
+### 1. Environment Setup
+```powershell
+# Clone the repository
+git clone https://github.com/Arsh-Pathan/Texture-Craft.git
+cd Texture-Craft
 
-Stable Diffusion cannot generate a 16×16 image. Its VAE compresses by 8×, so a 16px image
-becomes a 2×2 latent, and the UNet's three downsampling stages need at least 8×8. So you have
-to draw small content on a big canvas and fold it back.
-
-The trick is to make the fold lossless. Every training image is a 16×16 texture upscaled ×16
-with nearest-neighbour, so it consists of 16×16 flat blocks of 16×16 pixels. The model only
-ever learns to draw on that grid, and block-averaging the 256px output recovers the sprite
-exactly. Transparency rides along as magenta (255, 0, 255) and is keyed out afterwards — that
-colour appears in only 0.057% of opaque training pixels, where black would collide with item
-outlines in 23% of images.
-
-## Quick start
-
-```bash
+# Sync virtual environment using uv
 uv sync
-python sample.py --unet <path-or-hub-id> --out mytextures --prompt "copper sword"
 ```
 
-Or straight from the Hub — see the
-[model card](https://huggingface.co/yuuki14202028/minecraft-item-16px) for a self-contained
-snippet.
+### 2. Run the Native REST API
+```powershell
+.\.venv\Scripts\python.exe server.py
+```
+- **API URL:** `http://127.0.0.1:8000`
+- **Interactive Swagger Docs:** `http://127.0.0.1:8000/docs`
 
-**Generation settings that matter:** 256×256, guidance 9.0, 30 steps, and an **empty negative
-prompt**. Training used caption dropout to an empty string, so that is the model's
-unconditional path; non-empty negatives contain words absent from the 11,613-word training
-vocabulary and only inject noise. Measured: `usb drive` and `cat` never resolve with the usual
-`"blurry, photo, watermark…"` negative, at any guidance scale, and both work with an empty one.
+### 3. Run the MCP Server (for AI Agents)
+```powershell
+.\.venv\Scripts\python.exe mcp_server.py --transport stdio
+```
 
-## Scripts
+---
 
-| file | what it does |
-|---|---|
-| `prepare_data.py` | parquet → item-only 16×16 array + captions from file names |
-| `train.py` | full UNet fine-tune, VAE latents cached, min-SNR weighting, resumable |
-| `sample.py` | generate → fold to 16×16 → chroma-key the magenta background |
-| `mcpixel.py` | grid detection, downscale, background cutout, contact sheets |
-| `probe.sh` | fixed-seed evaluation set, for comparing checkpoints |
-| `explore.py` | 50 prompts × 2 seeds across six themes |
-| `sketch2tex.py` | hand-drawn 16×16 sketch → finished texture (img2img) |
-| `variants.py` | tier sets, reinterpretation of existing textures, jitter, sketches |
-| `space/app.py` | the Gradio demo on the Hub — text, sketch and tier-set tabs |
-| `RUNPOD.md` | how the training run was actually executed |
+## 🔌 Integration Options
 
-## Training
-
-369,342 item textures, 4 epochs, 92,335 steps at batch 16, lr 1e-5 cosine, min-SNR γ=5,
-10% caption dropout. One RTX 4090, 6.2 hours, 66.8 img/s. VAE and CLIP text encoder frozen;
-only the 859.5M UNet was trained.
+### 1. REST API
+Call Texture-Craft from any language (Python, Node.js, Go, Java):
 
 ```bash
-python prepare_data.py --parquet-dir <dir> --out data
-python train.py --data data --out runs/mc-item --bs 16 --lr 1e-5 --epochs 4
+# Generate texture & integrate directly into your plugin's resource pack
+curl -X POST http://127.0.0.1:8000/v1/resourcepack/item \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pack_dir": "C:/server/plugins/MyPlugin/resourcepack",
+    "namespace": "myplugin",
+    "item_id": "frost_blade",
+    "prompt": "frost blade with icy blue runes",
+    "base_vanilla_item": "diamond_sword",
+    "custom_model_data": 1001,
+    "display_name": "Frost Blade"
+  }'
 ```
 
-Loss went 0.01192 → 0.00858 and flattened in the final quarter as the cosine schedule decayed,
-so four epochs was about right for this setup.
+See [docs/API_REFERENCE.md](docs/API_REFERENCE.md) for full endpoint specifications.
 
-## What it can and cannot do
+---
 
-Measured over 50 prompts × 2 seeds plus a 20-prompt × 3-seed diagnostic set.
+### 2. MCP Server (Cursor, Claude Desktop, Antigravity)
+Add Texture-Craft to your agent's config:
 
-Material × form composition is essentially perfect, including combinations that never co-occur
-in training — `glass hammer` and `copper crown` both hit 3/3. Objects that do not exist in
-Minecraft work well when the word appears in the caption vocabulary: coffee cup, donut,
-syringe, umbrella, penguin, jellyfish, torii gate, katana. Even abstract prompts like
-`black hole` and `rainbow` produce sensible sprites.
+```json
+{
+  "mcpServers": {
+    "texture-craft": {
+      "command": "C:\\path\\to\\Texture-Craft\\.venv\\Scripts\\python.exe",
+      "args": ["C:\\path\\to\\Texture-Craft\\mcp_server.py"]
+    }
+  }
+}
+```
 
-Concepts with zero vocabulary support fall back on the SD1.5 prior and hit around 2 in 3
-(`guitar`, `microscope`). Fine modifiers like "tiny" and "rusty" are often dropped. Roughly
-10–15% of generations fill the whole frame, leaving the chroma key nothing to remove.
+See [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md) for IDE and agent setup.
 
-**Judge by hit rate, never by one image.** Seed variance is large enough to mislead. During
-development `steel ingot` looked broken until four seeds showed 3/4 correct, and `banana`
-looked impossible until six seeds showed 5/6 correct.
+---
 
-## img2img covers the gaps
+### 3. AI Plugin Generator Guide
+For instructions on connecting Texture-Craft to an AI Minecraft plugin builder, see [docs/PLUGIN_GENERATOR_GUIDE.md](docs/PLUGIN_GENERATOR_GUIDE.md).
 
-The model's weakness is the *shape* of unfamiliar objects, not texture or shading. Supplying
-the shape yourself fixes it — `sketch2tex.py` turns a crude 16×16 doodle into a finished item,
-and `variants.py` builds matched tier sets from one design, reinterprets existing textures, and
-produces controlled variation for filling out a pack. Both are tabs in the
-[live demo](https://huggingface.co/spaces/yuuki14202028/minecraft-item-16px-demo), so you can try them without cloning anything.
+---
 
-![one 16x16 texture expanded into twelve material variants](assets/tier_set.png)
+## 📁 Repository Structure
 
-## Data provenance
+```
+Texture-Craft/
+├── texture_craft/                  # Core library
+│   ├── engine.py                   # Model pipeline, CUDA inference, 16x16 folding & chroma-key
+│   └── resourcepack.py             # Resource pack manager, model JSONs & CustomModelData
+├── server.py                       # FastAPI REST API (port 8000, OpenAPI docs at /docs)
+├── mcp_server.py                   # Model Context Protocol server (stdio & SSE)
+├── models/
+│   └── minecraft-item-16px/        # Pre-cached model weights (instant loading)
+├── docs/
+│   ├── API_REFERENCE.md            # Complete REST API documentation & curl examples
+│   ├── MCP_INTEGRATION.md          # Guide for Cursor, Claude Desktop, Antigravity, and agents
+│   └── PLUGIN_GENERATOR_GUIDE.md   # Step-by-step guide for AI Minecraft plugin creators
+├── pyproject.toml
+└── uv.lock
+```
 
-Trained on [`OVAWARE/16xModdedMinecraft`](https://huggingface.co/datasets/OVAWARE/16xModdedMinecraft),
-a gated dataset of textures scraped from Modrinth mods. **It carries 235 distinct license
-values, including all-rights-reserved.** Generated outputs may resemble existing mod assets;
-verify originality before redistributing. See the model card for the full statement.
+---
 
-## License
-
-Code in this repository: MIT. Model weights: CreativeML OpenRAIL-M, inherited from Stable
-Diffusion 1.5.
+## 📜 License
+MIT License. Model weights inherit CreativeML OpenRAIL-M from Stable Diffusion 1.5.
