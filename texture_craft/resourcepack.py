@@ -96,11 +96,59 @@ class ResourcePackManager:
         custom_model_data: int,
         target_model: str,
     ) -> pathlib.Path:
-        """Updates or creates assets/minecraft/models/item/<base_item>.json with CustomModelData override.
+        """Registers a CustomModelData model for the target resource pack format.
 
-        Maintains sorted order of overrides by custom_model_data predicate.
+        Before pack format 46, item models use ``overrides`` in
+        ``assets/minecraft/models/item``. In format 46 (Minecraft 1.21.4) and
+        later, item models are selected through client item definitions under
+        ``assets/minecraft/items``; the old hardcoded model paths and
+        ``overrides`` are no longer read.
         """
         base = sanitize_id(base_item)
+        pack_format = self._get_pack_format()
+
+        if pack_format >= 46:
+            item_definition_dir = self.pack_dir / "assets" / "minecraft" / "items"
+            item_definition_dir.mkdir(parents=True, exist_ok=True)
+            item_definition_file = item_definition_dir / f"{base}.json"
+            model = self._read_json(item_definition_file)
+            model = model if isinstance(model, dict) else {}
+
+            dispatch = model.get("model")
+            is_our_dispatch = (
+                isinstance(dispatch, dict)
+                and dispatch.get("type") == "minecraft:range_dispatch"
+                and dispatch.get("property") == "minecraft:custom_model_data"
+            )
+            if is_our_dispatch:
+                entries = dispatch.get("entries", [])
+                entries = entries if isinstance(entries, list) else []
+                fallback = dispatch.get("fallback") or self._plain_model(f"minecraft:item/{base}")
+            else:
+                # Preserve a pre-existing item definition as the fallback when
+                # layering generated CMD entries onto an existing resource pack.
+                entries = []
+                fallback = dispatch if isinstance(dispatch, dict) else self._plain_model(f"minecraft:item/{base}")
+
+            entries = [entry for entry in entries if not (
+                isinstance(entry, dict) and self._as_float(entry.get("threshold")) == float(custom_model_data)
+            )]
+            entries.append({
+                "threshold": float(custom_model_data),
+                "model": self._plain_model(target_model),
+            })
+            entries.sort(key=lambda entry: self._as_float(entry.get("threshold")))
+            model["model"] = {
+                "type": "minecraft:range_dispatch",
+                "property": "minecraft:custom_model_data",
+                "index": 0,
+                "scale": 1.0,
+                "entries": entries,
+                "fallback": fallback,
+            }
+            item_definition_file.write_text(json.dumps(model, indent=2), encoding="utf-8")
+            return item_definition_file
+
         vanilla_model_dir = self.pack_dir / "assets" / "minecraft" / "models" / "item"
         vanilla_model_dir.mkdir(parents=True, exist_ok=True)
         base_model_file = vanilla_model_dir / f"{base}.json"
@@ -111,10 +159,8 @@ class ResourcePackManager:
         parent_type = "minecraft:item/handheld" if is_handheld else "minecraft:item/generated"
 
         if base_model_file.exists():
-            try:
-                data = json.loads(base_model_file.read_text(encoding="utf-8"))
-            except Exception:
-                data = {}
+            data = self._read_json(base_model_file)
+            data = data if isinstance(data, dict) else {}
         else:
             data = {}
 
@@ -145,6 +191,39 @@ class ResourcePackManager:
 
         base_model_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return base_model_file
+
+    def _get_pack_format(self) -> int:
+        """Read the format written by init_pack; default to the legacy default."""
+        metadata = self._read_json(self.pack_dir / "pack.mcmeta")
+        pack = metadata.get("pack", {}) if isinstance(metadata, dict) else {}
+        if isinstance(pack, dict):
+            try:
+                if "pack_format" in pack:
+                    return int(pack["pack_format"])
+                min_format = pack.get("min_format")
+                if isinstance(min_format, list) and min_format:
+                    return int(min_format[0])
+            except (TypeError, ValueError):
+                pass
+        return DEFAULT_PACK_FORMAT
+
+    @staticmethod
+    def _read_json(path: pathlib.Path) -> Any:
+        try:
+            return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    @staticmethod
+    def _plain_model(model_id: str) -> Dict[str, str]:
+        return {"type": "minecraft:model", "model": model_id}
+
+    @staticmethod
+    def _as_float(value: Any) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return float("-inf")
 
     def add_custom_item(
         self,

@@ -99,7 +99,7 @@ Creates a fresh Minecraft resource pack skeleton with `pack.mcmeta` and required
 |---|---|
 | **1.21 – 1.21.1** | `34` (Default) |
 | **1.21.2 – 1.21.3** | `42` |
-| **1.21.4** | `46` |
+| **1.21.4 and newer** | `46+` |
 | **1.20.5 – 1.20.6** | `32` |
 | **1.20.2 – 1.20.4** | `22` |
 
@@ -121,7 +121,7 @@ Creates a fresh Minecraft resource pack skeleton with `pack.mcmeta` and required
 Generates a texture and writes all necessary resource pack files directly to disk:
 1. `assets/<namespace>/textures/item/<item_id>.png` (16×16 RGBA texture)
 2. `assets/<namespace>/models/item/<item_id>.json` (item model)
-3. `assets/minecraft/models/item/<base_item>.json` (CustomModelData override, sorted ascending)
+3. For pack format 46+ (Minecraft 1.21.4+), `assets/minecraft/items/<base_item>.json` (CustomModelData range dispatch). Older formats use `assets/minecraft/models/item/<base_item>.json` overrides.
 
 #### Request Body
 ```json
@@ -147,7 +147,7 @@ Generates a texture and writes all necessary resource pack files directly to dis
   "model_file": "C:/server/plugins/MyPlugin/resourcepack/assets/myplugin/models/item/frost_blade.json",
   "base_vanilla_item": "diamond_sword",
   "custom_model_data": 1001,
-  "vanilla_override_file": "C:/server/plugins/MyPlugin/resourcepack/assets/minecraft/models/item/diamond_sword.json",
+  "vanilla_override_file": "C:/server/plugins/MyPlugin/resourcepack/assets/minecraft/items/diamond_sword.json",
   "base64_preview": "iVBORw0KGgoAAAANSUhEUgAA...",
   "seed": 42,
   "latency_sec": 1.54,

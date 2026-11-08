@@ -9,7 +9,7 @@ Texture-Craft implements the standard **Model Context Protocol (MCP)** specifica
 | Tool | Parameters | Description |
 |---|---|---|
 | `generate_texture` | `prompt`, `variants`, `seed`, `steps`, `guidance_scale` | Generates 16×16 transparent pixel-art textures and returns base64 PNGs. |
-| `create_resourcepack_item` | `pack_dir`, `item_id`, `prompt`, `namespace`, `base_vanilla_item`, `custom_model_data`, `display_name`, `seed` | Generates texture, writes PNG and model JSON to pack, registers CustomModelData override, and returns Java code snippet. |
+| `create_resourcepack_item` | `pack_dir`, `item_id`, `prompt`, `namespace`, `base_vanilla_item`, `custom_model_data`, `display_name`, `seed` | Generates texture and model JSON, registers the pack-format-appropriate CustomModelData selector, and returns Java code snippet. |
 | `init_resourcepack` | `pack_dir`, `pack_name`, `description`, `pack_format` | Generates `pack.mcmeta` and standard Minecraft folder hierarchy. |
 | `batch_create_resourcepack_items` | `pack_dir`, `namespace`, `items_json` | Batches multiple items into the resource pack in one pass. |
 | `get_system_status` | *(none)* | Returns GPU telemetry, VRAM usage, and engine readiness. |
