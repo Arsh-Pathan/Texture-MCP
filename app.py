@@ -178,9 +178,19 @@ def _generate_for_ui(
     steps: int,
     guidance_scale: float,
 ) -> tuple[Any, Any]:
-    if not seed.is_integer():
-        raise ValueError("Seed must be an integer.")
-    result = generate_textures(prompt, variants, int(seed), steps, guidance_scale)
+    try:
+        if not seed.is_integer():
+            raise ValueError("Seed must be an integer.")
+        prompt, variants, seed_value, steps, guidance_scale = validate_generation_inputs(
+            prompt, variants, int(seed), steps, guidance_scale
+        )
+    except ValueError as error:
+        return (
+            gr.update(value=None),
+            gr.update(value=f"**Invalid input:** {error}", visible=True),
+        )
+
+    result = generate_textures(prompt, variants, seed_value, steps, guidance_scale)
     seeds = ", ".join(str(texture["seed"]) for texture in result["textures"])
     summary = f"Generated **{result['count']}** textures · seeds: `{seeds}`"
     return (
@@ -197,7 +207,7 @@ with gr.Blocks(title="Texture-Craft") as demo:
     with gr.Row(elem_id="workspace-row"):
         with gr.Column(scale=1, min_width=0, elem_classes="input-panel"):
             prompt_input = gr.Textbox(
-                label="Describe your texture",
+                label=f"Describe your texture (up to {MAX_PROMPT_LENGTH} characters)",
                 placeholder="An emerald potion bottle with a cork stopper",
                 lines=3,
                 max_length=MAX_PROMPT_LENGTH,

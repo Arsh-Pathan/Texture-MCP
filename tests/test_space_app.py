@@ -126,6 +126,19 @@ def test_ui_generation_returns_compact_preview_and_seed_summary(monkeypatch):
     assert summary["value"] == "Generated **1** textures · seeds: `123`"
 
 
+def test_ui_shows_validation_message_for_long_prompt_without_generating(monkeypatch):
+    def fail_if_called(*args):
+        raise AssertionError("Generation must not start for invalid input.")
+
+    monkeypatch.setattr(app, "_generate_on_gpu", fail_if_called)
+
+    preview, summary = app._generate_for_ui("x" * 301, 1, -1.0, 30, 9.0)
+
+    assert preview["value"] is None
+    assert summary["visible"] is True
+    assert "Prompt must contain 1 to 300 characters." in summary["value"]
+
+
 def test_eight_variants_are_accepted_by_request_validation():
     validated = app.validate_generation_inputs("sword", 8, -1, 30, 9.0)
 
