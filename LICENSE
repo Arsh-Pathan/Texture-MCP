@@ -1,6 +1,7 @@
 MIT License
 
 Copyright (c) 2026 yuuki14202028
+Copyright (c) 2026 Arsh Pathan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,5 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 NOTE: This license covers the code in this repository only. The trained model
-weights are distributed under CreativeML OpenRAIL-M, inherited from Stable
-Diffusion 1.5. See https://huggingface.co/yuuki14202028/minecraft-item-16px
+weights are a fork of yuuki14202028's model and are distributed under
+CreativeML OpenRAIL-M, inherited from Stable Diffusion 1.5. See
+https://huggingface.co/yuuki14202028/minecraft-item-16px
