@@ -70,6 +70,19 @@ def test_gradio_api_exposes_typed_generation_tool():
     assert endpoint["description"]
 
 
+def test_gallery_uses_compact_tiles_without_large_preview_modal():
+    gallery = next(
+        component
+        for component in app.demo.config["components"]
+        if component["type"] == "gallery"
+    )
+
+    assert gallery["props"]["height"] == 180
+    assert gallery["props"]["min_width"] == 112
+    assert gallery["props"]["preview"] is False
+    assert gallery["props"]["allow_preview"] is False
+
+
 def test_engine_can_select_zerogpu_cuda_without_availability_probe(monkeypatch):
     monkeypatch.setattr(TextureEngine, "_load_pipeline", lambda self: None)
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)

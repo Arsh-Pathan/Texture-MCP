@@ -180,7 +180,11 @@ with gr.Blocks(title="Texture-Craft") as demo:
     gallery_output = gr.Gallery(
         label="Generated PNG textures",
         columns=4,
-        height="auto",
+        height=180,
+        min_width=112,
+        object_fit="contain",
+        preview=False,
+        allow_preview=False,
         elem_id="texture-gallery",
     )
     metadata_output = gr.JSON(label="Image metadata")
@@ -205,5 +209,12 @@ if IS_HF_SPACE:
 if __name__ == "__main__":
     demo.queue(default_concurrency_limit=1).launch(
         mcp_server=True,
-        css="#texture-gallery img { image-rendering: pixelated; }",
+        css="""
+        #texture-gallery img {
+            image-rendering: pixelated;
+            max-width: 96px !important;
+            max-height: 96px !important;
+            object-fit: contain !important;
+        }
+        """,
     )
