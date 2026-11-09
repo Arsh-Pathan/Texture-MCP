@@ -46,12 +46,6 @@ The model was run locally and generated a 10-item example collage. The raw files
 
 ![Texture collage](./examples/texture_collage.png)
 
-A few individual examples from the set:
-
-![Ruby sword](./examples/individual/01_ruby_sword.png)
-![Blue potion](./examples/individual/02_blue_potion.png)
-![Gold coin](./examples/individual/03_gold_coin.png)
-![Void orb](./examples/individual/10_void_orb.png)
 
 ## Example workflow
 
