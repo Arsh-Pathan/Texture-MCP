@@ -1,7 +1,7 @@
 [project]
 name = "texture-craft"
 version = "2.0.0"
-description = "FastAPI & MCP service for generating native 16x16 Minecraft item textures and resource packs for AI plugin generators."
+description = "Texture generation service with local REST, stdio MCP, and Gradio Space interfaces."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "MIT" }
@@ -9,10 +9,12 @@ dependencies = [
     "accelerate>=1.0",
     "diffusers>=0.39",
     "fastapi>=0.115",
-    "mcp>=2.3.0",
+    "gradio[mcp]>=6.0,<7",
+    "mcp>=1.30,<2",
     "pillow>=11",
     "pydantic>=2.10",
     "safetensors>=0.6",
+    "spaces>=0.40,<1",
     "torch>=2.8",
     "transformers>=5.0",
     "uvicorn>=0.34",
@@ -20,7 +22,7 @@ dependencies = [
 
 [project.scripts]
 texture-craft-api = "server:main"
-texture-craft-mcp = "mcp_server:main"
+texture-craft-mcp = "local_mcp_server:main"
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu126" }

@@ -1,0 +1,201 @@
+"""Hugging Face Gradio Space and MCP tools for texture-only generation."""
+
+from __future__ import annotations
+
+import base64
+import io
+import os
+import tempfile
+import unicodedata
+from pathlib import Path
+from typing import Any
+
+import gradio as gr
+import spaces
+from PIL import Image
+
+from texture_craft.engine import TextureEngine
+
+MAX_PROMPT_LENGTH = 300
+MAX_VARIANTS = 4
+MAX_SEED = 2**31 - 1
+MAX_STEPS = 50
+IS_HF_SPACE = bool(os.getenv("SPACE_ID"))
+
+
+def validate_generation_inputs(
+    prompt: str,
+    variants: int,
+    seed: int,
+    steps: int,
+    guidance_scale: float,
+) -> tuple[str, int, int, int, float]:
+    """Validate and normalize public generation inputs."""
+    if not isinstance(prompt, str):
+        raise ValueError("Prompt must be text.")
+    prompt = prompt.strip()
+    if not prompt or len(prompt) > MAX_PROMPT_LENGTH:
+        raise ValueError(f"Prompt must contain 1 to {MAX_PROMPT_LENGTH} characters.")
+    if any(unicodedata.category(char).startswith("C") for char in prompt):
+        raise ValueError("Prompt cannot contain control characters.")
+    if not isinstance(variants, int) or isinstance(variants, bool) or not 1 <= variants <= MAX_VARIANTS:
+        raise ValueError(f"Variants must be an integer from 1 to {MAX_VARIANTS}.")
+    if not isinstance(seed, int) or isinstance(seed, bool) or not -1 <= seed <= MAX_SEED:
+        raise ValueError(f"Seed must be -1 or an integer from 0 to {MAX_SEED}.")
+    if not isinstance(steps, int) or isinstance(steps, bool) or not 10 <= steps <= MAX_STEPS:
+        raise ValueError(f"Steps must be an integer from 10 to {MAX_STEPS}.")
+    if not isinstance(guidance_scale, (int, float)) or isinstance(guidance_scale, bool):
+        raise ValueError("Guidance scale must be a number from 3 to 15.")
+    guidance_scale = float(guidance_scale)
+    if not 3 <= guidance_scale <= 15:
+        raise ValueError("Guidance scale must be a number from 3 to 15.")
+    return prompt, variants, seed, steps, guidance_scale
+
+
+def estimate_gpu_duration(
+    prompt: str,
+    variants: int,
+    seed: int,
+    steps: int,
+    guidance_scale: float,
+) -> int:
+    """Estimate ZeroGPU allocation duration for bounded generation requests."""
+    return min(120, max(45, 20 + variants * steps))
+
+
+@spaces.GPU(duration=estimate_gpu_duration)
+def _generate_on_gpu(
+    prompt: str,
+    variants: int,
+    seed: int,
+    steps: int,
+    guidance_scale: float,
+) -> list[dict[str, Any]]:
+    engine = TextureEngine.get_instance(
+        cache_downloaded_model=not IS_HF_SPACE,
+        device="cuda" if IS_HF_SPACE else None,
+    )
+    return engine.generate_batch(
+        prompt=prompt,
+        variants=variants,
+        seed_base=seed if seed >= 0 else None,
+        steps=steps,
+        guidance_scale=guidance_scale,
+    )
+
+
+def generate_textures(
+    prompt: str,
+    variants: int = 1,
+    seed: int = -1,
+    steps: int = 30,
+    guidance_scale: float = 9.0,
+) -> dict[str, Any]:
+    """Generate transparent 16x16 item PNGs.
+
+    Args:
+        prompt: Short description of one item, up to 300 characters.
+        variants: Number of images to generate, from 1 to 4.
+        seed: Reproducible seed, or -1 to choose a random seed.
+        steps: Diffusion steps, from 10 to 50.
+        guidance_scale: Prompt guidance, from 3 to 15.
+
+    Returns:
+        Image filenames, seeds, timings, and base64 PNG/data-URI content.
+    """
+    prompt, variants, seed, steps, guidance_scale = validate_generation_inputs(
+        prompt, variants, seed, steps, guidance_scale
+    )
+    results = _generate_on_gpu(prompt, variants, seed, steps, guidance_scale)
+
+    textures: list[dict[str, Any]] = []
+    with tempfile.TemporaryDirectory(prefix="texture-craft-") as output_dir:
+        for result in results:
+            image = result["tile_image"].convert("RGBA")
+            filename = f"texture-{result['variant_index']:02d}.png"
+            image_path = Path(output_dir) / filename
+            image.save(image_path, format="PNG")
+            image_base64 = base64.b64encode(image_path.read_bytes()).decode("ascii")
+            textures.append(
+                {
+                    "filename": filename,
+                    "variant_index": result["variant_index"],
+                    "seed": result["seed"],
+                    "latency_sec": result["latency_sec"],
+                    "mime_type": "image/png",
+                    "base64_png": image_base64,
+                    "data_uri": f"data:image/png;base64,{image_base64}",
+                }
+            )
+
+    return {"prompt": prompt, "count": len(textures), "textures": textures}
+
+
+def _generate_for_gallery(
+    prompt: str,
+    variants: int,
+    seed: float,
+    steps: int,
+    guidance_scale: float,
+) -> tuple[list[tuple[Image.Image, str]], dict[str, Any]]:
+    if not seed.is_integer():
+        raise ValueError("Seed must be an integer.")
+    result = generate_textures(prompt, variants, int(seed), steps, guidance_scale)
+    gallery = [
+        (
+            Image.open(io.BytesIO(base64.b64decode(texture["base64_png"]))).copy(),
+            f"Variant {texture['variant_index']} · seed {texture['seed']}",
+        )
+        for texture in result["textures"]
+    ]
+    metadata = {
+        "prompt": result["prompt"],
+        "count": result["count"],
+        "textures": [
+            {key: value for key, value in texture.items() if key not in {"base64_png", "data_uri"}}
+            for texture in result["textures"]
+        ],
+    }
+    return gallery, metadata
+
+
+with gr.Blocks(title="Texture-Craft") as demo:
+    gr.Markdown(
+        "# Texture-Craft\n"
+        "Generate transparent 16×16 Minecraft-style item textures. "
+        "MCP clients can call the `generate_textures` tool."
+    )
+    with gr.Row():
+        prompt_input = gr.Textbox(
+            label="Item prompt",
+            placeholder="A ruby sword with a bright red blade and gold hilt",
+            max_length=MAX_PROMPT_LENGTH,
+        )
+        variants_input = gr.Slider(1, MAX_VARIANTS, value=1, step=1, label="Variants")
+    with gr.Row():
+        seed_input = gr.Number(value=-1, precision=0, label="Seed (-1 for random)")
+        steps_input = gr.Slider(10, MAX_STEPS, value=30, step=1, label="Steps")
+        guidance_input = gr.Slider(3, 15, value=9, step=0.5, label="Guidance scale")
+    generate_button = gr.Button("Generate textures", variant="primary")
+    gallery_output = gr.Gallery(label="Generated PNG textures", columns=4, height="auto")
+    metadata_output = gr.JSON(label="Image metadata")
+    generate_button.click(
+        _generate_for_gallery,
+        inputs=[prompt_input, variants_input, seed_input, steps_input, guidance_input],
+        outputs=[gallery_output, metadata_output],
+        api_name=False,
+    )
+    gr.api(
+        generate_textures,
+        api_name="generate_textures",
+        api_description="Generate 1–4 transparent 16×16 item PNGs. Returns base64 PNG and data URI content.",
+        concurrency_limit=1,
+    )
+
+if IS_HF_SPACE:
+    # ZeroGPU's startup CUDA emulation permits placing the pipeline before allocation.
+    TextureEngine.get_instance(cache_downloaded_model=False, device="cuda")
+
+
+if __name__ == "__main__":
+    demo.queue(default_concurrency_limit=1).launch(mcp_server=True)

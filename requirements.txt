@@ -1,0 +1,8 @@
+accelerate>=1.0
+diffusers>=0.39
+gradio[mcp]==6.31.0
+pillow>=11
+safetensors>=0.6
+spaces>=0.51.3,<1
+torch>=2.8
+transformers>=5.0

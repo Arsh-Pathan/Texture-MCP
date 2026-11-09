@@ -1,109 +1,72 @@
-# Texture-Craft MCP Integration Guide
+# MCP Integration
 
-Texture-Craft implements the standard **Model Context Protocol (MCP)** specification via `mcp_server.py`. This allows LLM coding agents (e.g., Cursor, Claude Desktop, Antigravity, or custom agent frameworks) to invoke 16×16 texture generation directly via tool calls.
+Texture-Craft exposes a single MCP tool: `generate_texture`.
 
----
+```mermaid
+flowchart TD
+    A[AI Agent / IDE] --> B[MCP Client]
+    B --> C[Local FastMCP server or Gradio Space MCP]
+    C --> D[TextureEngine.generate_batch]
+    D --> E[Generated tile variants]
+    E --> F[Base64 PNG / data URI payload]
+    F --> A
+```
 
-## 🛠️ Exposed MCP Tools
+### Example texture set
 
-| Tool | Parameters | Description |
-|---|---|---|
-| `generate_texture` | `prompt`, `variants`, `seed`, `steps`, `guidance_scale` | Generates 16×16 transparent pixel-art textures and returns base64 PNGs. |
-| `create_resourcepack_item` | `pack_dir`, `item_id`, `prompt`, `namespace`, `base_vanilla_item`, `custom_model_data`, `display_name`, `seed` | Generates texture and model JSON, registers the pack-format-appropriate CustomModelData selector, and returns Java code snippet. |
-| `init_resourcepack` | `pack_dir`, `pack_name`, `description`, `pack_format` | Generates `pack.mcmeta` and standard Minecraft folder hierarchy. |
-| `batch_create_resourcepack_items` | `pack_dir`, `namespace`, `items_json` | Batches multiple items into the resource pack in one pass. |
-| `get_system_status` | *(none)* | Returns GPU telemetry, VRAM usage, and engine readiness. |
-
----
-
-## 💻 1. Claude Desktop Integration
-
-Add Texture-Craft to your Claude Desktop configuration (`%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+![Texture collage](../examples/texture_collage.png)
 
 ```json
 {
   "mcpServers": {
     "texture-craft": {
-      "command": "C:\\Users\\ArshPathan\\Projects\\CSky-Developments\\sourcecode\\Texture-Craft\\.venv\\Scripts\\python.exe",
-      "args": [
-        "C:\\Users\\ArshPathan\\Projects\\CSky-Developments\\sourcecode\\Texture-Craft\\mcp_server.py"
-      ]
+      "command": "C:\\path\\to\\Texture-Craft\\.venv\\Scripts\\python.exe",
+      "args": ["C:\\path\\to\\Texture-Craft\\local_mcp_server.py"]
     }
   }
 }
 ```
 
----
+For the local stdio workflow, `texture-craft-mcp` runs the FastMCP server. The REST API remains available through `python server.py`. The Hugging Face deployment uses `app.py` and Gradio's built-in MCP server; it does not start a separate FastMCP service.
 
-## ⚡ 2. Cursor IDE Integration
+The tool accepts typed arguments:
 
-In Cursor, open **Settings → Features → MCP Servers → Add New MCP Server**:
-- **Name:** `texture-craft`
-- **Type:** `command`
-- **Command:** `C:\Users\ArshPathan\Projects\CSky-Developments\sourcecode\Texture-Craft\.venv\Scripts\python.exe C:\Users\ArshPathan\Projects\CSky-Developments\sourcecode\Texture-Craft\mcp_server.py`
+- `prompt`
+- `variants` (1–4)
+- `seed` (-1 for random or an integer from 0 to 2147483647)
+- `steps` (10–50)
+- `guidance_scale` (3–15)
 
-Alternatively, add it directly to `.cursor/mcp.json` in your project root:
+Example payload:
+
 ```json
 {
-  "mcpServers": {
-    "texture-craft": {
-      "command": "python",
-      "args": ["mcp_server.py"],
-      "cwd": "c:\\Users\\ArshPathan\\Projects\\CSky-Developments\\sourcecode\\Texture-Craft"
-    }
-  }
+  "prompt": "golden wand with arcane sparkles",
+  "variants": 2,
+  "seed": 42,
+  "steps": 30,
+  "guidance_scale": 9.0
 }
 ```
 
----
+Example response:
 
-## 🌐 3. SSE / HTTP Daemon Mode (for Web & Microservices)
-
-If your plugin generator runs as a web service or in another process, start the MCP server over SSE:
-
-```bash
-.\.venv\Scripts\python.exe mcp_server.py --transport sse --port 8001
+```json
+{
+  "prompt": "golden wand with arcane sparkles",
+  "count": 2,
+  "textures": [
+    {
+      "variant_index": 1,
+      "seed": 42,
+      "latency_sec": 1.8,
+      "filename": "texture-01.png",
+      "mime_type": "image/png",
+      "base64_png": "...",
+      "data_uri": "data:image/png;base64,..."
+    }
+  ]
+}
 ```
 
-Now any MCP client supporting Server-Sent Events can connect to `http://127.0.0.1:8001/sse`.
-
----
-
-## 🤖 4. Custom Python LLM Agent Example (LangChain / OpenAI / Anthropic)
-
-```python
-import asyncio
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-
-server_params = StdioServerParameters(
-    command=r"C:\Users\ArshPathan\Projects\CSky-Developments\sourcecode\Texture-Craft\.venv\Scripts\python.exe",
-    args=[r"C:\Users\ArshPathan\Projects\CSky-Developments\sourcecode\Texture-Craft\mcp_server.py"],
-)
-
-async def main():
-    async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            
-            # List tools
-            tools = await session.list_tools()
-            print("Available tools:", [t.name for t in tools.tools])
-            
-            # Generate texture for resource pack
-            result = await session.call_tool(
-                "create_resourcepack_item",
-                arguments={
-                    "pack_dir": "./output_pack",
-                    "namespace": "rpgplugin",
-                    "item_id": "void_scythe",
-                    "prompt": "void scythe with purple energy blade",
-                    "base_vanilla_item": "netherite_hoe",
-                    "custom_model_data": 5001,
-                    "display_name": "Void Scythe"
-                }
-            )
-            print("Result:", result.content)
-
-asyncio.run(main())
-```
+The Hugging Face Space MCP endpoint is `https://<owner>-<space-name>.hf.space/gradio_api/mcp/`. The public tool schema is at `/gradio_api/mcp/schema`; deployment instructions and verification steps are in [Hugging Face Space deployment](./HUGGING_FACE_SPACE.md).

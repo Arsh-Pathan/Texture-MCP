@@ -1,6 +1,5 @@
-"""Texture-Craft: AI-powered 16x16 Minecraft item texture generator for custom plugins and resource packs."""
+"""Texture-Craft: AI-powered 16x16 Minecraft item texture generator."""
 
 from .engine import TextureEngine
-from .resourcepack import ResourcePackManager
 
-__all__ = ["TextureEngine", "ResourcePackManager"]
+__all__ = ["TextureEngine"]
