@@ -70,17 +70,59 @@ def test_gradio_api_exposes_typed_generation_tool():
     assert endpoint["description"]
 
 
-def test_gallery_uses_compact_tiles_without_large_preview_modal():
-    gallery = next(
+def test_texture_preview_is_hidden_until_generated_and_has_fixed_dimensions():
+    preview = next(
         component
         for component in app.demo.config["components"]
-        if component["type"] == "gallery"
+        if component["type"] == "image"
+        and component["props"].get("elem_id") == "texture-preview"
     )
 
-    assert gallery["props"]["height"] == 180
-    assert gallery["props"]["min_width"] == 112
-    assert gallery["props"]["preview"] is False
-    assert gallery["props"]["allow_preview"] is False
+    assert preview["props"]["height"] == 132
+    assert preview["props"]["width"] == 432
+    assert preview["props"]["visible"] is False
+
+
+def test_preview_sheet_is_compact_and_labels_each_variant():
+    textures = [
+        {
+            "base64_png": app.TextureEngine.image_to_base64(
+                Image.new("RGBA", (16, 16), (255, 0, 0, 255))
+            ),
+            "variant_index": index,
+            "seed": 100 + index,
+        }
+        for index in range(1, 5)
+    ]
+
+    sheet = app._make_preview_sheet(textures)
+    pixels = sheet.load()
+
+    assert sheet.size == (372, 118)
+    assert pixels[8, 8] == (255, 0, 0, 255)
+    assert pixels[100, 8] == (255, 0, 0, 255)
+
+
+def test_ui_generation_returns_compact_preview_and_seed_summary(monkeypatch):
+    texture = {
+        "base64_png": app.TextureEngine.image_to_base64(
+            Image.new("RGBA", (16, 16), (20, 200, 80, 255))
+        ),
+        "variant_index": 1,
+        "seed": 123,
+    }
+    monkeypatch.setattr(
+        app,
+        "generate_textures",
+        lambda *args: {"prompt": "emerald potion", "count": 1, "textures": [texture]},
+    )
+
+    preview, summary = app._generate_for_ui("emerald potion", 1, -1.0, 30, 9.0)
+
+    assert preview["visible"] is True
+    assert preview["value"].size == (96, 118)
+    assert summary["visible"] is True
+    assert summary["value"] == "Generated **1** textures · seeds: `123`"
 
 
 def test_engine_can_select_zerogpu_cuda_without_availability_probe(monkeypatch):

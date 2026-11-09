@@ -12,7 +12,7 @@ from typing import Any
 
 import gradio as gr
 import spaces
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from texture_craft.engine import TextureEngine
 
@@ -131,32 +131,62 @@ def generate_textures(
     return {"prompt": prompt, "count": len(textures), "textures": textures}
 
 
-def _generate_for_gallery(
+def _make_preview_sheet(textures: list[dict[str, Any]]) -> Image.Image:
+    tile_size = 80
+    gap = 12
+    outer_margin = 8
+    caption_height = 18
+    columns = len(textures)
+    sheet_width = outer_margin * 2 + columns * tile_size + (columns - 1) * gap
+    sheet_height = outer_margin * 2 + tile_size + 4 + caption_height
+    sheet = Image.new("RGBA", (sheet_width, sheet_height), (36, 37, 41, 255))
+    draw = ImageDraw.Draw(sheet)
+
+    for index, texture in enumerate(textures):
+        x = outer_margin + index * (tile_size + gap)
+        y = outer_margin
+        draw.rounded_rectangle(
+            (x - 3, y - 3, x + tile_size + 3, y + tile_size + 3),
+            radius=4,
+            fill=(28, 29, 32, 255),
+            outline=(72, 73, 78, 255),
+        )
+        for checker_y in range(tile_size):
+            for checker_x in range(tile_size):
+                if (checker_x // 10 + checker_y // 10) % 2:
+                    draw.point(
+                        (x + checker_x, y + checker_y),
+                        fill=(66, 67, 72, 255),
+                    )
+
+        tile = Image.open(io.BytesIO(base64.b64decode(texture["base64_png"]))).convert("RGBA")
+        tile = tile.resize((tile_size, tile_size), Image.Resampling.NEAREST)
+        sheet.alpha_composite(tile, (x, y))
+        draw.text(
+            (x, y + tile_size + 4),
+            f"Variant {texture['variant_index']}",
+            fill=(225, 225, 229, 255),
+        )
+
+    return sheet
+
+
+def _generate_for_ui(
     prompt: str,
     variants: int,
     seed: float,
     steps: int,
     guidance_scale: float,
-) -> tuple[list[tuple[Image.Image, str]], dict[str, Any]]:
+) -> tuple[Any, Any]:
     if not seed.is_integer():
         raise ValueError("Seed must be an integer.")
     result = generate_textures(prompt, variants, int(seed), steps, guidance_scale)
-    gallery = [
-        (
-            Image.open(io.BytesIO(base64.b64decode(texture["base64_png"]))).copy(),
-            f"Variant {texture['variant_index']} · seed {texture['seed']}",
-        )
-        for texture in result["textures"]
-    ]
-    metadata = {
-        "prompt": result["prompt"],
-        "count": result["count"],
-        "textures": [
-            {key: value for key, value in texture.items() if key not in {"base64_png", "data_uri"}}
-            for texture in result["textures"]
-        ],
-    }
-    return gallery, metadata
+    seeds = ", ".join(str(texture["seed"]) for texture in result["textures"])
+    summary = f"Generated **{result['count']}** textures · seeds: `{seeds}`"
+    return (
+        gr.update(value=_make_preview_sheet(result["textures"]), visible=True),
+        gr.update(value=summary, visible=True),
+    )
 
 
 with gr.Blocks(title="Texture-Craft") as demo:
@@ -177,21 +207,24 @@ with gr.Blocks(title="Texture-Craft") as demo:
         steps_input = gr.Slider(10, MAX_STEPS, value=30, step=1, label="Steps")
         guidance_input = gr.Slider(3, 15, value=9, step=0.5, label="Guidance scale")
     generate_button = gr.Button("Generate textures", variant="primary")
-    gallery_output = gr.Gallery(
-        label="Generated PNG textures",
-        columns=4,
-        height=180,
-        min_width=112,
-        object_fit="contain",
-        preview=False,
-        allow_preview=False,
-        elem_id="texture-gallery",
+    preview_output = gr.Image(
+        label="Texture previews",
+        width=432,
+        height=132,
+        type="pil",
+        image_mode="RGBA",
+        interactive=False,
+        show_label=False,
+        container=False,
+        buttons=[],
+        visible=False,
+        elem_id="texture-preview",
     )
-    metadata_output = gr.JSON(label="Image metadata")
+    summary_output = gr.Markdown(visible=False)
     generate_button.click(
-        _generate_for_gallery,
+        _generate_for_ui,
         inputs=[prompt_input, variants_input, seed_input, steps_input, guidance_input],
-        outputs=[gallery_output, metadata_output],
+        outputs=[preview_output, summary_output],
         api_name=False,
     )
     gr.api(
@@ -210,10 +243,8 @@ if __name__ == "__main__":
     demo.queue(default_concurrency_limit=1).launch(
         mcp_server=True,
         css="""
-        #texture-gallery img {
+        #texture-preview img {
             image-rendering: pixelated;
-            max-width: 96px !important;
-            max-height: 96px !important;
             object-fit: contain !important;
         }
         """,
