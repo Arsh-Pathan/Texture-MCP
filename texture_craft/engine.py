@@ -79,27 +79,9 @@ class TextureEngine:
 
     @staticmethod
     def fold_to_tile(image: Image.Image, size: int = 16) -> Image.Image:
-        """Downsample generated output while preserving transparency."""
-        has_alpha = image.mode == "RGBA"
-        channels = 4 if has_alpha else 3
-        a = np.asarray(image.convert("RGBA" if has_alpha else "RGB"), dtype=np.float32)
-        c = a.shape[0] // size
-        blocks = a.reshape(size, c, size, c, channels)
-        if not has_alpha:
-            pixels = blocks.mean(axis=(1, 3))
-        else:
-            alpha = blocks[..., 3:4] / 255
-            alpha_mean = alpha.mean(axis=(1, 3))
-            weighted_rgb = (blocks[..., :3] * alpha).mean(axis=(1, 3))
-            rgb = np.divide(
-                weighted_rgb,
-                alpha_mean,
-                out=np.zeros_like(weighted_rgb),
-                where=alpha_mean > 0,
-            )
-            pixels = np.concatenate((rgb, alpha_mean * 255), axis=2)
-
-        return Image.fromarray(pixels.round().clip(0, 255).astype(np.uint8))
+        """Downsample with hard pixel edges instead of blending neighboring colors."""
+        mode = "RGBA" if "A" in image.getbands() else "RGB"
+        return image.convert(mode).resize((size, size), Image.Resampling.NEAREST)
 
     @staticmethod
     def key_out(tile: Image.Image, tol: int = 100) -> Image.Image:

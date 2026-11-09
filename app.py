@@ -177,7 +177,12 @@ with gr.Blocks(title="Texture-Craft") as demo:
         steps_input = gr.Slider(10, MAX_STEPS, value=30, step=1, label="Steps")
         guidance_input = gr.Slider(3, 15, value=9, step=0.5, label="Guidance scale")
     generate_button = gr.Button("Generate textures", variant="primary")
-    gallery_output = gr.Gallery(label="Generated PNG textures", columns=4, height="auto")
+    gallery_output = gr.Gallery(
+        label="Generated PNG textures",
+        columns=4,
+        height="auto",
+        elem_id="texture-gallery",
+    )
     metadata_output = gr.JSON(label="Image metadata")
     generate_button.click(
         _generate_for_gallery,
@@ -198,4 +203,7 @@ if IS_HF_SPACE:
 
 
 if __name__ == "__main__":
-    demo.queue(default_concurrency_limit=1).launch(mcp_server=True)
+    demo.queue(default_concurrency_limit=1).launch(
+        mcp_server=True,
+        css="#texture-gallery img { image-rendering: pixelated; }",
+    )

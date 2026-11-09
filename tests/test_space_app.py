@@ -78,3 +78,28 @@ def test_engine_can_select_zerogpu_cuda_without_availability_probe(monkeypatch):
 
     assert engine.device == "cuda"
     assert engine.dtype == torch.float16
+
+
+def test_downsampling_preserves_hard_pixels_instead_of_averaging():
+    source = Image.new("RGBA", (32, 32))
+    for y in range(32):
+        for x in range(32):
+            color = (255, 255, 255, 255) if (x + y) % 2 else (0, 0, 0, 255)
+            source.putpixel((x, y), color)
+
+    tile = TextureEngine.fold_to_tile(source)
+    expected = source.resize((16, 16), Image.Resampling.NEAREST)
+    tile_pixels = [
+        tile.getpixel((x, y))
+        for y in range(tile.height)
+        for x in range(tile.width)
+    ]
+    expected_pixels = [
+        expected.getpixel((x, y))
+        for y in range(expected.height)
+        for x in range(expected.width)
+    ]
+
+    assert tile.size == (16, 16)
+    assert tile_pixels == expected_pixels
+    assert set(tile_pixels) <= {(0, 0, 0, 255), (255, 255, 255, 255)}
