@@ -171,18 +171,6 @@ def _make_preview_sheet(textures: list[dict[str, Any]]) -> Image.Image:
     return sheet
 
 
-def _make_empty_preview() -> Image.Image:
-    preview = Image.new("RGBA", (520, 132), (36, 37, 41, 255))
-    draw = ImageDraw.Draw(preview)
-    checker_size = 12
-    for y in range(12, 104):
-        for x in range(12, 508):
-            if (x // checker_size + y // checker_size) % 2:
-                draw.point((x, y), fill=(49, 50, 55, 255))
-    draw.text((16, 110), "Your generated textures will appear here", fill=(188, 190, 197, 255))
-    return preview
-
-
 def _generate_for_ui(
     prompt: str,
     variants: int,
@@ -227,7 +215,6 @@ with gr.Blocks(title="Texture-Craft") as demo:
         with gr.Column(scale=1, min_width=0, elem_classes="preview-panel"):
             gr.Markdown("### Preview")
             preview_output = gr.Image(
-                value=_make_empty_preview(),
                 label="Texture previews",
                 width="100%",
                 height=180,
@@ -286,6 +273,16 @@ if __name__ == "__main__":
         #texture-preview img {
             image-rendering: pixelated;
             object-fit: contain !important;
+        }
+        #texture-preview .image-container {
+            background-color: #292a2e;
+            background-image:
+                linear-gradient(45deg, #393a3f 25%, transparent 25%),
+                linear-gradient(-45deg, #393a3f 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #393a3f 75%),
+                linear-gradient(-45deg, transparent 75%, #393a3f 75%);
+            background-size: 24px 24px;
+            background-position: 0 0, 0 12px, 12px -12px, -12px 0;
         }
         """,
     )

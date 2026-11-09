@@ -81,7 +81,7 @@ def test_texture_preview_is_visible_in_the_right_column_with_fixed_dimensions():
     assert preview["props"]["height"] == 180
     assert preview["props"]["width"] == "100%"
     assert preview["props"]["visible"] is True
-    assert preview["props"]["value"]["meta"]["_type"] == "gradio.FileData"
+    assert preview["props"].get("value") is None
 
 
 def test_preview_sheet_is_compact_and_labels_each_variant():
