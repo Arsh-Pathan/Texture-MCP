@@ -17,7 +17,7 @@ from PIL import Image, ImageDraw
 from texture_craft.engine import TextureEngine
 
 MAX_PROMPT_LENGTH = 300
-MAX_VARIANTS = 4
+MAX_VARIANTS = 8
 MAX_SEED = 2**31 - 1
 MAX_STEPS = 50
 IS_HF_SPACE = bool(os.getenv("SPACE_ID"))
@@ -60,7 +60,7 @@ def estimate_gpu_duration(
     guidance_scale: float,
 ) -> int:
     """Estimate ZeroGPU allocation duration for bounded generation requests."""
-    return min(120, max(45, 20 + variants * steps))
+    return min(300, max(60, 20 + variants * steps))
 
 
 @spaces.GPU(duration=estimate_gpu_duration)
@@ -95,7 +95,7 @@ def generate_textures(
 
     Args:
         prompt: Short description of one item, up to 300 characters.
-        variants: Number of images to generate, from 1 to 4.
+        variants: Number of images to generate, from 1 to 8.
         seed: Reproducible seed, or -1 to choose a random seed.
         steps: Diffusion steps, from 10 to 50.
         guidance_scale: Prompt guidance, from 3 to 15.
@@ -132,10 +132,10 @@ def generate_textures(
 
 
 def _make_preview_sheet(textures: list[dict[str, Any]]) -> Image.Image:
-    tile_size = 80
-    gap = 12
+    tile_size = 56
+    gap = 8
     outer_margin = 8
-    caption_height = 18
+    caption_height = 16
     columns = len(textures)
     sheet_width = outer_margin * 2 + columns * tile_size + (columns - 1) * gap
     sheet_height = outer_margin * 2 + tile_size + 4 + caption_height
@@ -171,6 +171,18 @@ def _make_preview_sheet(textures: list[dict[str, Any]]) -> Image.Image:
     return sheet
 
 
+def _make_empty_preview() -> Image.Image:
+    preview = Image.new("RGBA", (520, 132), (36, 37, 41, 255))
+    draw = ImageDraw.Draw(preview)
+    checker_size = 12
+    for y in range(12, 104):
+        for x in range(12, 508):
+            if (x // checker_size + y // checker_size) % 2:
+                draw.point((x, y), fill=(49, 50, 55, 255))
+    draw.text((16, 110), "Your generated textures will appear here", fill=(188, 190, 197, 255))
+    return preview
+
+
 def _generate_for_ui(
     prompt: str,
     variants: int,
@@ -192,35 +204,42 @@ def _generate_for_ui(
 with gr.Blocks(title="Texture-Craft") as demo:
     gr.Markdown(
         "# Texture-Craft\n"
-        "Generate transparent 16×16 Minecraft-style item textures. "
-        "MCP clients can call the `generate_textures` tool."
+        "Generate crisp, transparent 16×16 item textures."
     )
-    with gr.Row():
-        prompt_input = gr.Textbox(
-            label="Item prompt",
-            placeholder="A ruby sword with a bright red blade and gold hilt",
-            max_length=MAX_PROMPT_LENGTH,
-        )
-        variants_input = gr.Slider(1, MAX_VARIANTS, value=1, step=1, label="Variants")
-    with gr.Row():
-        seed_input = gr.Number(value=-1, precision=0, label="Seed (-1 for random)")
-        steps_input = gr.Slider(10, MAX_STEPS, value=30, step=1, label="Steps")
-        guidance_input = gr.Slider(3, 15, value=9, step=0.5, label="Guidance scale")
-    generate_button = gr.Button("Generate textures", variant="primary")
-    preview_output = gr.Image(
-        label="Texture previews",
-        width=432,
-        height=132,
-        type="pil",
-        image_mode="RGBA",
-        interactive=False,
-        show_label=False,
-        container=False,
-        buttons=[],
-        visible=False,
-        elem_id="texture-preview",
-    )
-    summary_output = gr.Markdown(visible=False)
+    with gr.Row(elem_id="workspace-row"):
+        with gr.Column(scale=1, min_width=0, elem_classes="input-panel"):
+            prompt_input = gr.Textbox(
+                label="Describe your texture",
+                placeholder="An emerald potion bottle with a cork stopper",
+                lines=3,
+                max_length=MAX_PROMPT_LENGTH,
+            )
+            variants_input = gr.Slider(
+                1, MAX_VARIANTS, value=1, step=1, label="Variants"
+            )
+            with gr.Row():
+                steps_input = gr.Slider(10, MAX_STEPS, value=30, step=1, label="Steps")
+                guidance_input = gr.Slider(
+                    3, 15, value=9, step=0.5, label="Guidance"
+                )
+            seed_input = gr.Number(value=-1, precision=0, label="Seed (-1 for random)")
+            generate_button = gr.Button("Generate textures", variant="primary")
+        with gr.Column(scale=1, min_width=0, elem_classes="preview-panel"):
+            gr.Markdown("### Preview")
+            preview_output = gr.Image(
+                value=_make_empty_preview(),
+                label="Texture previews",
+                width="100%",
+                height=180,
+                type="pil",
+                image_mode="RGBA",
+                interactive=False,
+                show_label=False,
+                container=False,
+                buttons=[],
+                elem_id="texture-preview",
+            )
+            summary_output = gr.Markdown("Your generated textures will appear here.")
     generate_button.click(
         _generate_for_ui,
         inputs=[prompt_input, variants_input, seed_input, steps_input, guidance_input],
@@ -230,7 +249,7 @@ with gr.Blocks(title="Texture-Craft") as demo:
     gr.api(
         generate_textures,
         api_name="generate_textures",
-        api_description="Generate 1–4 transparent 16×16 item PNGs. Returns base64 PNG and data URI content.",
+        api_description="Generate 1–8 transparent 16×16 item PNGs. Returns base64 PNG and data URI content.",
         concurrency_limit=1,
     )
 
@@ -243,6 +262,27 @@ if __name__ == "__main__":
     demo.queue(default_concurrency_limit=1).launch(
         mcp_server=True,
         css="""
+        #workspace-row {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            align-items: start;
+            gap: 1rem;
+        }
+        #workspace-row > .column {
+            min-width: 0 !important;
+            width: auto !important;
+        }
+        @media (max-width: 640px) {
+            #workspace-row {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+        .input-panel, .preview-panel {
+            border: 1px solid var(--border-color-primary);
+            border-radius: 12px;
+            padding: 18px !important;
+            background: var(--block-background-fill);
+        }
         #texture-preview img {
             image-rendering: pixelated;
             object-fit: contain !important;

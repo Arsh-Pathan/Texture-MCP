@@ -15,7 +15,7 @@ from texture_craft.engine import TextureEngine, torch
         (("", 1, -1, 30, 9.0), "Prompt"),
         (("x" * 301, 1, -1, 30, 9.0), "Prompt"),
         (("sword", 0, -1, 30, 9.0), "Variants"),
-        (("sword", 5, -1, 30, 9.0), "Variants"),
+        (("sword", 9, -1, 30, 9.0), "Variants"),
         (("sword", 1, -2, 30, 9.0), "Seed"),
         (("sword", 1, 2**31, 30, 9.0), "Seed"),
         (("sword", 1, -1, 9, 9.0), "Steps"),
@@ -70,7 +70,7 @@ def test_gradio_api_exposes_typed_generation_tool():
     assert endpoint["description"]
 
 
-def test_texture_preview_is_hidden_until_generated_and_has_fixed_dimensions():
+def test_texture_preview_is_visible_in_the_right_column_with_fixed_dimensions():
     preview = next(
         component
         for component in app.demo.config["components"]
@@ -78,9 +78,10 @@ def test_texture_preview_is_hidden_until_generated_and_has_fixed_dimensions():
         and component["props"].get("elem_id") == "texture-preview"
     )
 
-    assert preview["props"]["height"] == 132
-    assert preview["props"]["width"] == 432
-    assert preview["props"]["visible"] is False
+    assert preview["props"]["height"] == 180
+    assert preview["props"]["width"] == "100%"
+    assert preview["props"]["visible"] is True
+    assert preview["props"]["value"]["meta"]["_type"] == "gradio.FileData"
 
 
 def test_preview_sheet_is_compact_and_labels_each_variant():
@@ -92,13 +93,13 @@ def test_preview_sheet_is_compact_and_labels_each_variant():
             "variant_index": index,
             "seed": 100 + index,
         }
-        for index in range(1, 5)
+        for index in range(1, 9)
     ]
 
     sheet = app._make_preview_sheet(textures)
     pixels = sheet.load()
 
-    assert sheet.size == (372, 118)
+    assert sheet.size == (520, 92)
     assert pixels[8, 8] == (255, 0, 0, 255)
     assert pixels[100, 8] == (255, 0, 0, 255)
 
@@ -120,9 +121,38 @@ def test_ui_generation_returns_compact_preview_and_seed_summary(monkeypatch):
     preview, summary = app._generate_for_ui("emerald potion", 1, -1.0, 30, 9.0)
 
     assert preview["visible"] is True
-    assert preview["value"].size == (96, 118)
+    assert preview["value"].size == (72, 92)
     assert summary["visible"] is True
     assert summary["value"] == "Generated **1** textures · seeds: `123`"
+
+
+def test_eight_variants_are_accepted_by_request_validation():
+    validated = app.validate_generation_inputs("sword", 8, -1, 30, 9.0)
+
+    assert validated[1] == 8
+
+
+def test_inputs_are_left_of_preview_and_variant_cap_is_eight():
+    config = app.demo.config
+    components = {component["id"]: component for component in config["components"]}
+    main_row = config["layout"]["children"][1]
+    left_id, right_id = [child["id"] for child in main_row["children"]]
+
+    assert components[left_id]["props"]["elem_classes"] == ["input-panel"]
+    assert components[right_id]["props"]["elem_classes"] == ["preview-panel"]
+
+    variants = next(
+        component
+        for component in config["components"]
+        if component["type"] == "slider"
+        and component["props"].get("label") == "Variants"
+    )
+    assert variants["props"]["maximum"] == 8
+    assert app.MAX_VARIANTS == 8
+
+
+def test_generation_duration_scales_for_eight_variant_requests():
+    assert app.estimate_gpu_duration("", 8, -1, 50, 9.0) == 300
 
 
 def test_engine_can_select_zerogpu_cuda_without_availability_probe(monkeypatch):

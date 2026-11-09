@@ -32,7 +32,7 @@ For the local stdio workflow, `texture-craft-mcp` runs the FastMCP server. The R
 The tool accepts typed arguments:
 
 - `prompt`
-- `variants` (1–4)
+- `variants` (1–8)
 - `seed` (-1 for random or an integer from 0 to 2147483647)
 - `steps` (10–50)
 - `guidance_scale` (3–15)

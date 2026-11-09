@@ -44,7 +44,7 @@ Gradio exposes MCP through `demo.launch(mcp_server=True)`. The UI and MCP tool c
 ## Hardware and limitations
 
 - ZeroGPU queues requests and applies per-user daily usage quotas; availability and quota depend on Hugging Face account tier and current policy. Check the current [ZeroGPU documentation](https://huggingface.co/docs/hub/spaces-zerogpu) for account eligibility, quota, and queue priority.
-- Generation requests are limited to 1–4 variants, 10–50 steps, prompts up to 300 characters, and bounded seeds/guidance values. GPU duration is estimated from the request and capped.
+- Generation requests are limited to 1–8 variants, 10–50 steps, prompts up to 300 characters, and bounded seeds/guidance values. Larger batches take longer and consume more ZeroGPU quota; allocated duration is estimated from the request and capped at 300 seconds.
 - CPU inference is supported by the underlying engine but can be very slow. Free CPU hardware should not be expected to run this diffusion model comfortably.
 - Initial startup downloads the model from the Hugging Face cache and explicitly places it on CUDA under ZeroGPU's documented startup CUDA emulation. Space startup does not rely on `torch.cuda.is_available()` to choose a device, and downloads are not copied into the app's local model directory.
 - Transparent-background extraction is heuristic; inspect generated textures before use.
