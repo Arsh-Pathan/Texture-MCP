@@ -226,7 +226,7 @@ with gr.Blocks(title="Texture-Craft") as demo:
                 buttons=[],
                 elem_id="texture-preview",
             )
-            summary_output = gr.Markdown("Your generated textures will appear here.")
+            summary_output = gr.Markdown("Choose a prompt and generate to see your textures.")
     generate_button.click(
         _generate_for_ui,
         inputs=[prompt_input, variants_input, seed_input, steps_input, guidance_input],
@@ -283,6 +283,26 @@ if __name__ == "__main__":
                 linear-gradient(-45deg, transparent 75%, #393a3f 75%);
             background-size: 24px 24px;
             background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+        }
+        #texture-preview .empty {
+            height: 132px !important;
+            border-radius: 8px;
+            color: #d1d2d6;
+            background-color: #292a2e;
+            background-image:
+                linear-gradient(45deg, #393a3f 25%, transparent 25%),
+                linear-gradient(-45deg, #393a3f 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #393a3f 75%),
+                linear-gradient(-45deg, transparent 75%, #393a3f 75%);
+            background-size: 24px 24px;
+            background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+        }
+        #texture-preview .empty .icon {
+            display: none;
+        }
+        #texture-preview .empty::after {
+            content: "16x16 texture previews";
+            font-size: 0.9rem;
         }
         """,
     )
